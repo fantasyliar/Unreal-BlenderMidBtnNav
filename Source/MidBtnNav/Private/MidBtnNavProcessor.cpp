@@ -50,24 +50,29 @@ bool FMidBtnNavProcessor::HandleMouseButtonDownEvent(FSlateApplication& SlateApp
             bIsOrbiting = true;
             
             FRotator CurrentRot = ViewportClient->GetViewRotation();
+            FVector ViewLoc = ViewportClient->GetViewLocation();
+            
+            // 获取轴心
+            OrbitPivot = GetSelectionCenter();
+            if (OrbitPivot.IsZero()) OrbitPivot = ViewportClient->GetLookAtLocation();
+
+            // 计算相机到球心的向量
+            FVector ToPivot = OrbitPivot - ViewLoc;
+            LockedDistance = ToPivot.Size();
+           
             CurrentOrbitYaw = CurrentRot.Yaw;
-    
+            CurrentOrbitPitch = CurrentRot.Pitch;
             // 判断是否倒置：检查 Up 向量与世界 Z 的点积
             FVector CameraUp = FRotationMatrix(CurrentRot).GetScaledAxis(EAxis::Z);
-            bool bIsUpsideDown = (CameraUp | FVector::UpVector) < 0.f;
-
-            if (bIsUpsideDown)
+            if ((CameraUp | FVector::UpVector) < 0.f)// 如果倒立，CurrentRot将Yaw翻转，Pitch限制在+-90
             {
-                // 如果倒立，UE 压缩后的 Yaw 会多出 180 度，Pitch 会被取反
-                CurrentOrbitYaw = CurrentRot.Yaw - 180.0f; 
-                CurrentOrbitPitch = 180.0f - CurrentRot.Pitch;
+                CurrentOrbitYaw -= 180.0f; 
+                CurrentOrbitPitch = 180.0f - CurrentOrbitPitch;
             }
-            else
-            {
-                CurrentOrbitYaw = CurrentRot.Yaw;
-                CurrentOrbitPitch = CurrentRot.Pitch;
-            }
-            CurrentOrbitYaw = FRotator::NormalizeAxis(CurrentOrbitYaw);
+            
+            // dyn_ofs：pivot 在相机局部空间的位置
+            FQuat ViewQuat = CurrentRot.Quaternion();
+            DynOffset = ViewQuat.Inverse().RotateVector(ToPivot);
         }
         return true; // 拦截事件，屏蔽原有功能，以最先注册的插件为准
     }
@@ -110,42 +115,37 @@ bool FMidBtnNavProcessor::HandleMouseMoveEvent(FSlateApplication& SlateApp, cons
             
             if (bIsOrbiting)
             {
-                // 1. 获取旋转中心
-                FVector Pivot = GetSelectionCenter();
-                if (Pivot.IsZero()) Pivot = ViewportClient->GetLookAtLocation();
-
-                // 2. 更新经纬度累加
+                // 更新经纬度累加
                 constexpr float RotationSpeed = 0.25f;
                 CurrentOrbitYaw += CursorDelta.X * RotationSpeed;
                 CurrentOrbitPitch -= CursorDelta.Y * RotationSpeed;
 
-                // 3. 计算球面坐标的 Forward 向量
+                // 计算球面坐标的 Forward 向量
                 // FRotator会钳制pinch的范围，在+-90°将无法继续旋转
                 float CP, SP, CY, SY;
                 FMath::SinCos(&SP, &CP, FMath::DegreesToRadians(CurrentOrbitPitch));
                 FMath::SinCos(&SY, &CY, FMath::DegreesToRadians(CurrentOrbitYaw));
                 FVector ForwardDir(CP * CY, CP * SY, SP);
 
-                // 4. 动态参考向量处理
+                // 动态参考向量处理
                 // Pitch 在 90~270 度之间，相机z指向世界z负向。动态Up应该反向才能维持旋转。不反向会导致叉乘反号。
                 // 使用余弦值 CP 的符号来判断相机是否处于倒置半球
-                
                 float UpSign = (CP >= 0) ? 1.0f : -1.0f;
                 FVector DynamicUp = FVector::UpVector * UpSign;
 
-                // 5. 使用 MakeFromXZ 构造旋转矩阵
+                // 使用 MakeFromXZ 构造旋转矩阵
                 // Z轴参考 = DynamicUp，与X叉乘得到的Y轴垂直于世界Z轴，保证绝对水平
                 // 最终的Z向量不是DynamicUp，而是先算好Y轴再叉乘得到的Z
                 // 如果恰好90°，叉乘结果不会是零向量，因为MakeFromXZ把世界Z换成世界X了，但还是会突变，只是很难恰好等于这个值
                 FMatrix RotMatrix = FRotationMatrix::MakeFromXZ(ForwardDir, DynamicUp);
     
-                // 6. 计算新位置
-                FVector NewLoc = Pivot - (ForwardDir * LockedDistance);
-
-                // 7. 更新视口
+                // 计算新位置，dyn_ofs 位置补偿
+                FVector NewLoc = OrbitPivot - RotMatrix.TransformVector(DynOffset);
+                
+                // 更新视口
                 ViewportClient->SetViewLocation(NewLoc);
                 ViewportClient->SetViewRotation(RotMatrix.Rotator());
-                ViewportClient->SetLookAtLocation(Pivot);
+                ViewportClient->SetLookAtLocation(OrbitPivot);
 
                 return true;
             }

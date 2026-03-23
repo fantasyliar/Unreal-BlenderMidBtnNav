@@ -28,6 +28,9 @@ private:
 	float CurrentOrbitYaw;    
 	float CurrentOrbitPitch;  
 	
+	FVector OrbitPivot;
+	FVector DynOffset;
+	
 	// 辅助函数
 	FEditorViewportClient* GetLevelViewportClientUnderMouse(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) const;
 };
