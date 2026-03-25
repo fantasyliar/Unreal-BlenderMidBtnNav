@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "INavHandler.h"
 #include "Framework/Application/IInputProcessor.h"
 
 class FEditorViewportClient; // 前向声明
@@ -20,17 +21,12 @@ public:
 	virtual const TCHAR* GetDebugName() const override { return TEXT("CtrlScaleNavProcessor"); }
 
 private:
-	bool bIsOrbiting; 
-	bool bIsPanning; 
-	bool bIsZooming;
-	
-	float LockedDistance;     // 按下中键瞬间，相机到中心点的距离
-	float CurrentOrbitYaw;    
-	float CurrentOrbitPitch;  
-	
-	FVector OrbitPivot;
-	FVector DynOffset;
-	
 	// 辅助函数
-	FEditorViewportClient* GetLevelViewportClientUnderMouse(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) const;
+	static TSharedPtr<SWidget> GetWidgetUnderMouse(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent, FString& OutWidgetType);
+
+	// 持有具体的逻辑处理器
+	TSharedPtr<INavHandler> LevelHandler;
+	TSharedPtr<INavHandler> GraphHandler;
+	// 指向当前正在接管输入的处理器
+	INavHandler* ActiveHandler;
 };

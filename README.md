@@ -1,9 +1,23 @@
-在UE中使用blender的中键视图导航方式。
+Mouse middle button view navigation in UE like Blender.
 
-目前没有找到带Ctrl+中键缩放的插件，AHK也实现不了，所以自己做了一个。
+At present did not find with Ctrl + Middle Zoom plug-in, AHK also can not achieve, so I made one.
 
-在3d视口模拟blender的中键旋转、Shift+中键平移、Ctrl+中键缩放。
+**LevelEditor :**
 
-旋转像blender一样绕选定物体旋转，且无限旋转而不是在z轴垂直于屏幕时锁定，不会出现roll问题。
+​	Middle button orbit
 
-仅在ue5.7.4版本中测试过。
+​		The orbit, like the blender, rotates around the selected object and rotates indefinitely instead of being locked when the z axis is perpendicular to the screen, without the roll problem.
+
+​	Shift + middle button pan
+
+​	Ctrl + middle button zoom
+**GraphEditor :**
+​	Middle button / Shift + middle button pan
+
+​		Latency may depend on CPU utilization, but I don't know much about that. 
+
+​	Ctrl + middle button zoom
+
+​		simply fake the mouse wheel
+
+Only tested in UE 5.7.4.

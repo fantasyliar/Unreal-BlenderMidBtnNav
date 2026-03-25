@@ -41,6 +41,7 @@ public class MidBtnNav : ModuleRules
 			{
 				"UnrealEd", 
 				"LevelEditor",
+				"GraphEditor",
 				"EditorFramework",
 				// ... add private dependencies that you statically link with here ...	
 			}
